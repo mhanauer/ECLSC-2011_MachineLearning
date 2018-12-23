@@ -1,4 +1,3 @@
-# ECLSC-2011_MachineLearning
 ---
 title: "ECLS-K-2011"
 output: html_document
@@ -19,6 +18,7 @@ library(reshape2)
 library(nlme)
 library(dplyr)
 library(MissMech)
+library(caret)
 ```
 Here we are setting the WD to google drive.  See earlier versions for getting the original data source.
 
@@ -104,25 +104,57 @@ dat_long = reshape(data1, varying = list(c("X1TCHCON", "X2TCHCON", "X4TCHCON"), 
 ```
 Do missing at random test
 ```{r}
-TestMCARNormality(dat_long)
+
+R.Version()
+#TestMCARNormality(dat_long)
 ```
 
 Review whole data set
 ```{r}
 describe(dat_long)
 ```
+Get full data set
+```{r}
+dim(dat_long)
+dat_long_complete = na.omit(dat_long)
+dim(dat_long_complete)
+dat_long_complete
+```
+Just run a regular regression
+```{r}
+reg_lm = lm(dat_long_complete$X1TCHCON ~ dat_long_complete$X1PAR1EMP + dat_long_complete$X2POVTY + dat_long_complete$X_CHSEX_R + dat_long_complete$X1PUBPRI + dat_long_complete$X1PAR1RAC + dat_long_complete$X1_RACETHP_R + dat_long_complete$X12LANGST + dat_long_complete$time + dat_long_complete$X1RTHET + dat_long_complete$X1MTHET + dat_long_complete$X1BMI + dat_long_complete$X1HTOTAL + dat_long_complete$X1PAR1AGE, data = dat_long_complete)
+summary(reg_lm)
+```
+
+
 Get training set
 ```{r}
-inTrain = createDataPartition(y = dat_long$id, p = .75, list = FALSE)
-training = dat[inTrain,]
-testing = dat[-inTrain,] 
+inTrain = createDataPartition(y = dat_long_complete$id, p = .75, list = FALSE)
+training = dat_long_complete[inTrain,]
+testing = dat_long_complete[-inTrain,] 
 ```
-Cross validiation means split the data set into ten testing and run and then repeat this process again ten times
+Now generate the cross validation where you split the training set up ten times and then repeat that process ten times 
 ```{r}
 fitControl <- trainControl(
   method = "repeatedcv",
   number = 10,
   repeats = 10)
+```
+Now try running this model 
+```{r}
+set.seed(12345)
+
+lmFit1 <- train(X1TCHCON ~ ., data = training, 
+                 method = "lm", 
+                 trControl = fitControl,
+                 verbose = FALSE)
+```
+See what happened
+```{r}
+gbmFit1
+lmFit1
+
+predict(gbmFit1, newdata = head(testing), type = "prob")
 ```
 
 
